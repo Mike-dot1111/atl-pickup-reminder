@@ -145,7 +145,7 @@ async function sendReminderEmail(order) {
       draft_order: {
         line_items: [{ title: 'Pickup Reminder', quantity: 1, price: '0.00' }],
         email: to,
-        note: 'Auto-generated for reminder email — safe to delete',
+        note: 'booking-email',
       },
     });
 

@@ -165,7 +165,7 @@ module.exports = async function handler(req, res) {
       draft_order: {
         line_items: [{ title: 'Booking Confirmation', quantity: 1, price: '0.00' }],
         email: to,
-        note: 'Auto-generated for confirmation email — safe to delete',
+        note: 'booking-email',
       },
     });
 
