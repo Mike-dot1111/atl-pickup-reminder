@@ -92,45 +92,57 @@ function buildConfirmationMessage(order) {
     : '';
 
   let details = '';
-  if (direction) details += 'Direction: ' + direction + '\\n';
-  if (pickup) details += 'Pickup: ' + pickup + '\\n';
-  if (dropoff) details += 'Dropoff: ' + dropoff + '\\n';
-  if (airport) details += 'Airport: ' + airport + '\\n';
-  if (terminal) details += 'Terminal: ' + terminal + '\\n';
-  if (flight && flight !== 'N/A') details += 'Flight: ' + flight + '\\n';
-  details += 'Vehicle: ' + vehicle + '\\n';
-  details += 'Passengers: ' + passengers + '\\n';
+  let destination = '';
+  if (airport && terminal) destination = airport + ' \u2013 ' + terminal;
+  else if (airport) destination = airport;
+  else if (dropoff) destination = dropoff;
+
+  let details = '';
+  if (destination) details += 'Destination: ' + destination + '\n';
+  if (pickup) details += 'Pickup Address: ' + pickup + '\n';
+  if (flight && flight !== 'N/A') details += 'Flight: ' + flight + '\n';
+  if (vehicle) details += 'Vehicle: ' + vehicle + '\n';
+  if (passengers) details += 'Passengers: ' + passengers + '\n';
   if (returnTrip === 'Yes') {
-    details += 'Return Trip: Yes\\n';
-    if (returnDate && returnDate !== 'N/A') details += 'Return Date: ' + returnDate + '\\n';
-    if (returnTime && returnTime !== 'N/A') details += 'Return Time: ' + returnTime + '\\n';
+    details += 'Return Trip: Yes\n';
+    if (returnDate && returnDate !== 'N/A') details += 'Return Date: ' + returnDate + '\n';
+    if (returnTime && returnTime !== 'N/A') details += 'Return Time: ' + returnTime + '\n';
   }
-  if (notes && notes !== 'None') details += 'Notes: ' + notes + '\\n';
-  details += '\\nTotal: ' + total + '\\n';
-  details += 'Payment: ' + payment + '\\n';
-  details += 'Deposit Paid: \\u00a3' + (order.total_price || '0.00') + '\\n';
+  if (notes && notes !== 'None') details += 'Notes: ' + notes + '\n';
 
   return `Hi${customerName ? ' ' + customerName.trim() : ''},
 
 Thank you for booking with Airport Taxi Links! Your booking is confirmed.
 
-BOOKING REF: ${order.name}
-PICKUP: ${dateTimeDisplay}
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+Booking Ref: ${order.name}
+Pickup: ${dateTimeDisplay}
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
-TRIP DETAILS:
+Your Journey Details
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 ${details}
-WHAT HAPPENS NEXT:
-- Your driver has been notified
-- We will send you a reminder 24 hours before your pickup
-- Your driver will track your flight and adjust for any delays
-- If you need to make changes, please contact us as soon as possible
+Payment Details
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+Total Fare: ${total}
+Payment Method: ${payment}
+Deposit Paid: \u00a3${order.total_price || '0.00'}
+
+What Happens Next
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+\u2714 Your booking is confirmed and your driver has been notified
+\u2714 We will send you a reminder 24 hours before your pickup
+\u2714 Your driver will track your flight and adjust for any delays
+\u2714 If you need to make changes, please contact us as soon as possible
 
 Need to make changes?
-Email: info@heathrowairporttaxilinks.co.uk
-Phone: 07903 040442
+\u2709 Email: info@airporttaxilinks.co.uk
+\u260e Phone: 07903 040442
 
-Thank you for choosing Airport Taxi Links!
-Heathrow specialists covering all UK airports
+Thank you for choosing Airport Taxi Links \u2014 your trusted Heathrow specialists covering all UK airports.
+
+Kind regards,
+Airport Taxi Links Team
 airporttaxilinks.co.uk`;
 }
 

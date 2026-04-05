@@ -100,33 +100,50 @@ function buildReminderMessage(order) {
   const dateTimeDisplay = when || (date + ' ' + time).trim();
   const customerName = order.customer ? (order.customer.first_name || '') : '';
 
+  let destination = '';
+  if (airport && terminal) destination = airport + ' \u2013 ' + terminal;
+  else if (airport) destination = airport;
+  else if (dropoff) destination = dropoff;
+
   let details = '';
-  if (direction) details += 'Direction: ' + direction + '\\n';
-  if (pickup) details += 'Pickup: ' + pickup + '\\n';
-  if (dropoff) details += 'Dropoff: ' + dropoff + '\\n';
-  if (airport) details += 'Airport: ' + airport + '\\n';
-  if (terminal) details += 'Terminal: ' + terminal + '\\n';
-  if (flight && flight !== 'N/A') details += 'Flight: ' + flight + '\\n';
-  details += 'Vehicle: ' + vehicle + '\\n';
-  details += 'Passengers: ' + passengers + '\\n';
-  details += '\\nTotal: ' + total + '\\n';
-  details += 'Payment: ' + payment + '\\n';
+  if (destination) details += 'Destination: ' + destination + '\n';
+  if (pickup) details += 'Pickup Address: ' + pickup + '\n';
+  if (flight && flight !== 'N/A') details += 'Flight: ' + flight + '\n';
+  if (vehicle) details += 'Vehicle: ' + vehicle + '\n';
+  if (passengers) details += 'Passengers: ' + passengers + '\n';
 
   return `Hi${customerName ? ' ' + customerName : ''},
 
-This is a friendly reminder that your trip is scheduled for tomorrow.
+Just checking in to make sure everything is all set for your journey tomorrow.
 
-PICKUP: ${dateTimeDisplay}
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+\u2708 Pickup: ${dateTimeDisplay}
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
-TRIP DETAILS:
+Your Journey Details
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 ${details}
-Everything is confirmed and your driver is ready. No action needed if everything is still correct.
+Payment Details
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+Total Fare: ${total}
+Payment Method: ${payment}
 
-If you need to make any changes, please contact us as soon as possible:
-Email: info@heathrowairporttaxilinks.co.uk
-Phone: 07903 040442
+\u2714 Your booking is fully confirmed
+\u2714 Your driver will arrive promptly at the scheduled time
+\u2714 Sit back and enjoy a smooth, stress-free journey to the airport
 
-Thank you for choosing Airport Taxi Links!`;
+If there's anything you'd like to update or check before your trip, we're always happy to help:
+
+\u2709 Email: info@airporttaxilinks.co.uk
+\u260e Phone: 07903 040442
+
+Thank you for choosing Airport Taxi Links \u2014 your trusted Heathrow specialists covering all UK airports.
+
+We wish you a pleasant journey and safe travels \u2708
+
+Kind regards,
+Airport Taxi Links Team
+airporttaxilinks.co.uk`;
 }
 
 async function sendReminderEmail(order) {
