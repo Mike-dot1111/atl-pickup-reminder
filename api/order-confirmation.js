@@ -1,7 +1,6 @@
-// Airport Taxi Links — Pickup Reminder Service
-// Runs daily at 9am via Vercel Cron
-// Checks unfulfilled orders for tomorrow's pickups
-// Sends branded reminder email via Shopify draft order invoice (free)
+// Airport Taxi Links — Order Confirmation Email
+// Triggered by Shopify webhook on order creation
+// Sends branded confirmation email to customer via draft order invoice
 
 const https = require('https');
 
@@ -69,20 +68,7 @@ function getOrderProp(order, key) {
   return null;
 }
 
-function isTomorrow(dateStr) {
-  if (!dateStr) return false;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  let parsed = dateStr.trim().split(' ')[0];
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(parsed)) {
-    const [d, m, y] = parsed.split('/');
-    parsed = `${y}-${m}-${d}`;
-  }
-  return parsed === tomorrowStr;
-}
-
-function buildReminderMessage(order) {
+function buildConfirmationMessage(order) {
   const pickup = getOrderProp(order, '_Pickup') || getOrderProp(order, '_Pickup address') || getOrderProp(order, '_Address') || '';
   const dropoff = getOrderProp(order, '_Dropoff') || '';
   const airport = getOrderProp(order, '_Airport') || '';
@@ -97,8 +83,13 @@ function buildReminderMessage(order) {
   const total = getOrderProp(order, '_Total') || '';
   const payment = getOrderProp(order, '_Payment') || '';
   const notes = getOrderProp(order, '_Notes') || '';
+  const returnTrip = getOrderProp(order, '_Return') || '';
+  const returnDate = getOrderProp(order, '_Return Date') || '';
+  const returnTime = getOrderProp(order, '_Return Time') || '';
   const dateTimeDisplay = when || (date + ' ' + time).trim();
-  const customerName = order.customer ? (order.customer.first_name || '') : '';
+  const customerName = order.customer
+    ? (order.customer.first_name || '') + ' ' + (order.customer.last_name || '')
+    : '';
 
   let details = '';
   if (direction) details += 'Direction: ' + direction + '\\n';
@@ -109,59 +100,84 @@ function buildReminderMessage(order) {
   if (flight && flight !== 'N/A') details += 'Flight: ' + flight + '\\n';
   details += 'Vehicle: ' + vehicle + '\\n';
   details += 'Passengers: ' + passengers + '\\n';
+  if (returnTrip === 'Yes') {
+    details += 'Return Trip: Yes\\n';
+    if (returnDate && returnDate !== 'N/A') details += 'Return Date: ' + returnDate + '\\n';
+    if (returnTime && returnTime !== 'N/A') details += 'Return Time: ' + returnTime + '\\n';
+  }
+  if (notes && notes !== 'None') details += 'Notes: ' + notes + '\\n';
   details += '\\nTotal: ' + total + '\\n';
   details += 'Payment: ' + payment + '\\n';
+  details += 'Deposit Paid: \\u00a3' + (order.total_price || '0.00') + '\\n';
 
-  return `Hi${customerName ? ' ' + customerName : ''},
+  return `Hi${customerName ? ' ' + customerName.trim() : ''},
 
-This is a friendly reminder that your trip is scheduled for tomorrow.
+Thank you for booking with Airport Taxi Links! Your booking is confirmed.
 
+BOOKING REF: ${order.name}
 PICKUP: ${dateTimeDisplay}
 
 TRIP DETAILS:
 ${details}
-Everything is confirmed and your driver is ready. No action needed if everything is still correct.
+WHAT HAPPENS NEXT:
+- Your driver has been notified
+- We will send you a reminder 24 hours before your pickup
+- Your driver will track your flight and adjust for any delays
+- If you need to make changes, please contact us as soon as possible
 
-If you need to make any changes, please contact us as soon as possible:
+Need to make changes?
 Email: info@heathrowairporttaxilinks.co.uk
 Phone: 07903 040442
 
-Thank you for choosing Airport Taxi Links!`;
+Thank you for choosing Airport Taxi Links!
+Heathrow specialists covering all UK airports
+airporttaxilinks.co.uk`;
 }
 
-async function sendReminderEmail(order) {
-  const to = order.email || order.contact_email;
-  if (!to) {
-    console.log('  No email for order ' + order.name);
-    return false;
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(200).json({ message: 'OK — send POST with order data' });
   }
 
-  const message = buildReminderMessage(order);
-  const dateTimeDisplay = getOrderProp(order, '_When') || (getOrderProp(order, '_Date') || '') + ' ' + (getOrderProp(order, '_Time') || '');
+  // Read the raw body for webhook
+  let body = '';
+  if (typeof req.body === 'object') {
+    body = req.body;
+  } else {
+    return res.status(400).json({ error: 'No order data' });
+  }
+
+  const order = body;
+  const to = order.email || order.contact_email;
+
+  if (!to) {
+    console.log('No customer email on order ' + (order.name || 'unknown'));
+    return res.status(200).json({ message: 'No customer email, skipping' });
+  }
+
+  console.log('Sending confirmation for ' + order.name + ' to ' + to);
 
   try {
-    // Step 1: Create a temporary draft order
+    const message = buildConfirmationMessage(order);
+
+    // Create temporary draft order
     const draftRes = await shopifyRest('POST', '/draft_orders.json', {
       draft_order: {
-        line_items: [{ title: 'Pickup Reminder', quantity: 1, price: '0.00' }],
+        line_items: [{ title: 'Booking Confirmation', quantity: 1, price: '0.00' }],
         email: to,
-        note: 'Auto-generated for reminder email — safe to delete',
+        note: 'Auto-generated for confirmation email — safe to delete',
       },
     });
 
     const draftOrder = draftRes.draft_order;
     if (!draftOrder || !draftOrder.id) {
-      console.log('  Failed to create draft order for ' + order.name);
-      return false;
+      console.log('Failed to create draft order');
+      return res.status(500).json({ error: 'Failed to create draft order' });
     }
 
-    console.log('  Created draft order ' + draftOrder.id + ' for ' + to);
-
-    // Step 2: Send invoice with custom message
+    // Send invoice email
     const gid = 'gid://shopify/DraftOrder/' + draftOrder.id;
-    const subject = 'Reminder: Your Pickup is Tomorrow — ' + order.name;
-
-    // Escape the message for GraphQL
+    const subject = 'Booking Confirmed \\u2014 ' + order.name;
     const escapedMessage = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
     const escapedSubject = subject.replace(/"/g, '\\"');
     const escapedTo = to.replace(/"/g, '\\"');
@@ -183,62 +199,18 @@ async function sendReminderEmail(order) {
     const errors = invoiceRes?.data?.draftOrderInvoiceSend?.userErrors || [];
 
     if (errors.length > 0) {
-      console.log('  Invoice errors:', JSON.stringify(errors));
+      console.log('Invoice errors:', JSON.stringify(errors));
     } else {
-      console.log('  Reminder email sent to ' + to);
+      console.log('Confirmation email sent to ' + to);
     }
 
-    // Step 3: Delete the draft order
+    // Delete draft order
     await shopifyRest('DELETE', '/draft_orders/' + draftOrder.id + '.json');
-    console.log('  Deleted draft order ' + draftOrder.id);
 
-    return errors.length === 0;
-  } catch (err) {
-    console.error('  Email send error:', err.message);
-    return false;
-  }
-}
-
-module.exports = async function handler(req, res) {
-  console.log('Starting 24-hour reminder check...');
-
-  try {
-    const data = await shopifyRest('GET', '/orders.json?status=any&fulfillment_status=unfulfilled&limit=250');
-    const orders = data.orders || [];
-    console.log('Found ' + orders.length + ' unfulfilled orders');
-
-    let remindersSent = 0;
-
-    for (const order of orders) {
-      if ((order.tags || '').includes('reminder-sent')) continue;
-
-      const pickupDate = getOrderProp(order, '_Date') || '';
-      const pickupWhen = getOrderProp(order, '_When') || '';
-      const dateToCheck = pickupDate || pickupWhen;
-
-      if (isTomorrow(dateToCheck)) {
-        console.log('Order ' + order.name + ' has pickup tomorrow: ' + dateToCheck);
-
-        const sent = await sendReminderEmail(order);
-
-        if (sent) {
-          // Tag as reminder-sent so we don't send again
-          const currentTags = (order.tags || '').split(',').map(t => t.trim()).filter(t => t);
-          currentTags.push('reminder-sent');
-          await shopifyRest('PUT', '/orders/' + order.id + '.json', {
-            order: { id: order.id, tags: currentTags.join(', ') },
-          });
-          remindersSent++;
-        }
-      }
-    }
-
-    console.log('Done. ' + remindersSent + ' reminders sent.');
     return res.status(200).json({
-      success: true,
-      ordersChecked: orders.length,
-      remindersSent,
-      timestamp: new Date().toISOString(),
+      success: errors.length === 0,
+      order: order.name,
+      to,
     });
   } catch (error) {
     console.error('Error:', error);
