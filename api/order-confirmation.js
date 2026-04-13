@@ -148,7 +148,7 @@ airporttaxilinks.co.uk`;
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(200).json({ message: 'OK — send POST with order data' });
+    return res.status(200).json({ message: "OK - send POST with order data" });
   }
 
   // Read the raw body for webhook
