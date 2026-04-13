@@ -91,7 +91,6 @@ function buildConfirmationMessage(order) {
     ? (order.customer.first_name || '') + ' ' + (order.customer.last_name || '')
     : '';
 
-  let details = '';
   let destination = '';
   if (airport && terminal) destination = airport + ' \u2013 ' + terminal;
   else if (airport) destination = airport;
